@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nearby Healthcare Facilities — Tirupati Medical GIS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="nearby_facilities.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Floating Header -->
+        <header class="floating-header">
+            <h1 onclick="window.location.href='index.html'" style="cursor: pointer;">Tirupati-Medical GIS</h1>
+            <nav class="header-nav">
+                <a href="home.html" class="nav-link">Home</a>
+                <a href="index.html" class="nav-link">District Analysis</a>
+                <a href="mandal_analysis.html" class="nav-link">Mandal Analysis</a>
+                <a href="nearby_facilities.html" class="nav-link active">Facilities</a>
+            </nav>
+        </header>
+
+        <!-- Main Dashboard Wrapper -->
+        <div class="nearby-dashboard-row">
+            <!-- Left Side: Sidebar Panel (20% width) -->
+            <div class="nearby-sidebar-left">
+                <h3 style="font-size: 1.05rem; font-weight: 700; color: #38bdf8; margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 8px;">Mandal Metrics</h3>
+                <p style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 10px;">Select a mandal on the map to display its details here.</p>
+                <div id="sidebar-mandal-details" style="display: none;">
+                    <div style="font-size: 1.25rem; font-weight: 700; color: #ffffff; margin-bottom: 14px;" id="side-mandal-name">-</div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 4px;">
+                            <span style="color: #94a3b8;">Total Facilities:</span>
+                            <strong style="color: #38bdf8;" id="side-total">-</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 4px;">
+                            <span style="color: #94a3b8;">Clinics (VHC):</span>
+                            <strong style="color: #ffffff;" id="side-vhc">-</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 4px;">
+                            <span style="color: #94a3b8;">Primary (PHC):</span>
+                            <strong style="color: #ffffff;" id="side-phc">-</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 4px;">
+                            <span style="color: #94a3b8;">Urban (UPHC):</span>
+                            <strong style="color: #ffffff;" id="side-uphc">-</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 4px;">
+                            <span style="color: #94a3b8;">Community (CHC):</span>
+                            <strong style="color: #ffffff;" id="side-chc">-</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 4px;">
+                            <span style="color: #94a3b8;">Area Hosp (AH):</span>
+                            <strong style="color: #ffffff;" id="side-ah">-</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 4px;">
+                            <span style="color: #94a3b8;">Teaching (TH):</span>
+                            <strong style="color: #ffffff;" id="side-th">-</strong>
+                        </div>
+                    </div>
+                    <button id="btn-health-resources" class="health-resources-btn">
+                        Health Resources
+                    </button>
+                    <button id="btn-nearby-search" class="nearby-search-btn">
+                        Nearby Facilities
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Side: Leaflet Map (80% width) -->
+            <div class="nearby-right-column">
+                <div class="nearby-map-card">
+                    <div id="nearby-map"></div>
+                </div>
+
+                <!-- Table Card Below the Map -->
+                <div class="nearby-table-card" id="search-results-table-card" style="display: none;">
+                    <h3 class="table-title">Nearby Facilities Details</h3>
+                    <div class="table-responsive">
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>S.No</th>
+                                    <th>Hospital Name</th>
+                                    <th>Distance</th>
+                                    <th>Est. Travel Time</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-table-body">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Glassmorphic Modal for Radius Search -->
+    <div id="radius-search-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3 class="modal-title">Search Nearby Facilities</h3>
+            <p class="modal-subtitle">Find hospitals and clinics within a specified distance from a village.</p>
+            
+            <div class="modal-form-group">
+                <label for="modal-mandal-name">Selected Mandal</label>
+                <input type="text" id="modal-mandal-name" readonly>
+            </div>
+            
+            <div class="modal-form-group">
+                <label for="modal-village-name">Village Name</label>
+                <input type="text" id="modal-village-name" placeholder="e.g. Karakambadi, Renigunta, etc." required>
+            </div>
+            
+            <div class="modal-form-group">
+                <label for="modal-radius">Search Radius (in kilometers)</label>
+                <div class="radius-input-container">
+                    <input type="number" id="modal-radius" min="1" max="50" value="5">
+                    <span class="radius-unit">km</span>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" id="btn-modal-cancel" class="btn-cancel">Cancel</button>
+                <button type="button" id="btn-modal-submit" class="btn-submit">Search</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="nearby_facilities.js"></script>
+</body>
+</html>
