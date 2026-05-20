@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home — Tirupati Medical GIS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="home.css?v=4">
+</head>
+
+<body>
+    <div id="app">
+        <!-- Floating Header -->
+        <header class="floating-header">
+            <h1 onclick="window.location.href='index.html'" style="cursor: pointer;">Tirupati-Medical GIS</h1>
+            <nav class="header-nav">
+                <a href="home.html" class="nav-link active">Home</a>
+                <a href="index.html" class="nav-link">District Analysis</a>
+                <a href="mandal_analysis.html" class="nav-link">Mandal Analysis</a>
+                <a href="index.html#nearby-facilities-card" class="nav-link">Nearby Facilities</a>
+            </nav>
+        </header>
+
+        <main class="home-hero">
+            <h2 class="hero-title">Welcome to Tirupati Medical GIS</h2>
+            <p class="hero-subtitle">
+                A comprehensive geospatial dashboard designed to monitor, analyze,
+                and visualize healthcare resources and disease prevalence across Tirupati district.
+            </p>
+            <p class="hero-description">
+                Explore our detailed district-level analytics, view individual mandal breakdowns, and discover the
+                availability of critical medical facilities to enable better public health planning.
+            </p>
+            <div class="hero-buttons">
+                <button onclick="window.location.href='index.html'" class="btn-primary">View District Analysis</button>
+                <button onclick="window.location.href='mandal_analysis.html'" class="btn-secondary">Mandal
+                    Breakdown</button>
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>

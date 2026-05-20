@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Andhra Pradesh Mandals Map</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css?v=82">
+</head>
+<body>
+    <div id="app">
+        <header class="floating-header">
+            <h1>Tirupati-Medical GIS</h1>
+            <nav class="header-nav">
+                <a href="home.html" class="nav-link">Home</a>
+                <a href="index.html" class="nav-link active">District Analysis</a>
+                <a href="mandal_analysis.html" class="nav-link">Mandal Analysis</a>
+                <a href="#nearby-facilities-card" class="nav-link">Nearby Facilities</a>
+            </nav>
+        </header>
+
+        <div id="district-summary-bar" class="district-summary-bar">
+            <!-- Row 1: 5 Primary KPIs -->
+            <div class="summary-row">
+                <!-- Card 1: Overview -->
+                <div class="summary-card overview">
+                    <span class="card-label">District Overview</span>
+                    <strong class="card-val highlight">34 Mandals</strong>
+                </div>
+                
+                <!-- Card 2: Population -->
+                <div class="summary-card">
+                    <span class="card-label">Total Population</span>
+                    <strong id="dist-total-pop" class="card-val">-</strong>
+                </div>
+                
+                <!-- Card 3: Total Facilities -->
+                <div class="summary-card">
+                    <span class="card-label">Total Facilities</span>
+                    <strong id="dist-total-facilities" class="card-val highlight">-</strong>
+                </div>
+                
+                <!-- Card 4: VHC -->
+                <div class="summary-card">
+                    <span class="card-label">Clinics (VHC)</span>
+                    <strong id="dist-vhc" class="card-val">-</strong>
+                </div>
+                
+                <!-- Card 5: PHC -->
+                <div class="summary-card">
+                    <span class="card-label">Primary (PHC)</span>
+                    <strong id="dist-phc" class="card-val">-</strong>
+                </div>
+            </div>
+            
+            <!-- Row 2: 4 Secondary KPIs -->
+            <div class="summary-row">
+                <!-- Card 6: UPHC -->
+                <div class="summary-card">
+                    <span class="card-label">Urban (UPHC)</span>
+                    <strong id="dist-uphc" class="card-val">-</strong>
+                </div>
+                
+                <!-- Card 7: CHC -->
+                <div class="summary-card">
+                    <span class="card-label">Community (CHC)</span>
+                    <strong id="dist-chc" class="card-val">-</strong>
+                </div>
+                
+                <!-- Card 8: AH -->
+                <div class="summary-card">
+                    <span class="card-label">Area Hosp (AH)</span>
+                    <strong id="dist-ah" class="card-val">-</strong>
+                </div>
+                
+                <!-- Card 9: TH -->
+                <div class="summary-card">
+                    <span class="card-label">Teaching (TH)</span>
+                    <strong id="dist-th" class="card-val">-</strong>
+                </div>
+                
+                <!-- Card 10: Avg Facilities -->
+                <div class="summary-card">
+                    <span class="card-label">Avg. per Mandal</span>
+                    <strong id="dist-avg-facilities" class="card-val highlight">-</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Layout Row -->
+        <div class="dashboard-row">
+            <!-- Left Column Wrapper: Map & Rate Analysis -->
+            <div class="map-column-wrapper">
+                <!-- Map Card -->
+                <main class="map-container">
+                    <!-- Map Controls Bar -->
+                    <div class="map-controls-bar">
+                        <!-- Map Mode Controls (Left) -->
+                        <div class="map-mode-controls">
+                            <button id="btn-outline" class="mode-btn active">Outline Map</button>
+                            <button id="btn-leaflet" class="mode-btn">Leaflet Map</button>
+                        </div>
+                        
+                        <!-- Map Filters (Right) -->
+                        <div class="filters">
+                            <div class="filter-group">
+                                <label for="disease-select">Disease</label>
+                                <select id="disease-select">
+                                    <option value="dengue" selected>Dengue</option>
+                                    <option value="malaria">Malaria</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="metric-select">Metric</label>
+                                <select id="metric-select">
+                                    <option value="total no of cases" selected>Total Cases</option>
+                                    <option value="confirmed cases">Confirmed Cases</option>
+                                    <option value="recovered cases">Recovered Cases</option>
+                                    <option value="death cases">Death Cases</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="map"></div>
+                </main>
+
+                <!-- Bottom Analysis Cards Row -->
+                <div class="bottom-analysis-row">
+                    <!-- Incidence Analysis Card (Below the Map) -->
+                    <aside class="incidence-container">
+                        <div class="analysis-header-row">
+                            <h3 class="analysis-title">Mandal Rate Analysis</h3>
+                            <select id="analysis-rate-select" class="analysis-select">
+                                <option value="incidence_ratio" selected>Incident Rate</option>
+                                <option value="recovery_ratio">Recovery Rate</option>
+                                <option value="death_ratio">Death Rate</option>
+                            </select>
+                        </div>
+                        <div class="analysis-card-body">
+                            <div class="analysis-stats">
+                                <div class="analysis-stat-row">
+                                    <span id="label-avg-rate" class="stat-label">Avg Incident Rate:</span>
+                                    <strong id="val-avg-incident-rate" class="stat-value">-</strong>
+                                </div>
+                                <div class="analysis-stat-row">
+                                    <span class="stat-label">Mandals Above Avg:</span>
+                                    <strong id="val-above-avg-incident-count" class="stat-value">-</strong>
+                                </div>
+                                <div class="analysis-stat-row">
+                                    <span class="stat-label">Percentage:</span>
+                                    <strong id="val-above-avg-incident-percent" class="stat-value">-</strong>
+                                </div>
+                            </div>
+                            
+                            <div class="pie-chart-column">
+                                <div class="pie-chart-box">
+                                    <canvas id="above-avg-incident-pie-chart" width="130" height="130"></canvas>
+                                </div>
+                                <button id="btn-show-above-avg-rate-map" class="map-action-btn">Show in Map</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Color legend for pie chart slices -->
+                        <div class="pie-legend">
+                            <div class="pie-legend-item">
+                                <span class="legend-dot above"></span>
+                                <span class="legend-text">Above Average</span>
+                            </div>
+                            <div class="pie-legend-item">
+                                <span class="legend-dot below"></span>
+                                <span class="legend-text">Below / Equal Average</span>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <!-- Hospital Facilities Analysis Card -->
+                    <aside class="hospital-analysis-container">
+                        <div class="analysis-header-row">
+                            <h3 class="analysis-title">Hospital Facilities Analysis</h3>
+                        </div>
+                        <div class="analysis-card-body">
+                            <div class="analysis-stats">
+                                <div class="analysis-stat-row">
+                                    <span class="stat-label">Avg Facilities:</span>
+                                    <strong id="val-avg-hospitals" class="stat-value">-</strong>
+                                </div>
+                                <div class="analysis-stat-row">
+                                    <span class="stat-label">Mandals Above Avg:</span>
+                                    <strong id="val-above-avg-hospitals-count" class="stat-value">-</strong>
+                                </div>
+                                <div class="analysis-stat-row">
+                                    <span class="stat-label">Percentage:</span>
+                                    <strong id="val-above-avg-hospitals-percent" class="stat-value">-</strong>
+                                </div>
+                            </div>
+                            
+                            <div class="pie-chart-column">
+                                <div class="pie-chart-box">
+                                    <canvas id="above-avg-hospitals-pie-chart" width="130" height="130"></canvas>
+                                </div>
+                                <button id="btn-show-above-avg-hospitals-map" class="map-action-btn">Show in Map</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Color legend for pie chart slices -->
+                        <div class="pie-legend">
+                            <div class="pie-legend-item">
+                                <span class="legend-dot above"></span>
+                                <span class="legend-text">Above Average</span>
+                            </div>
+                            <div class="pie-legend-item">
+                                <span class="legend-dot below"></span>
+                                <span class="legend-text">Below / Equal Average</span>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </div>
+
+            <!-- Right Column Wrapper: Disease KPIs & Case Analysis -->
+            <div class="sidebar-wrapper">
+                <!-- Disease KPI Card -->
+                <aside id="disease-kpis-card" class="disease-kpis-container">
+                    <h3 class="analysis-title">Disease Summary KPIs</h3>
+                    <div class="kpi-grid-mini">
+                        <div class="kpi-card-mini">
+                            <span class="kpi-label-mini">Total Cases</span>
+                            <strong id="kpi-mini-cases" class="kpi-value-mini">-</strong>
+                        </div>
+                        <div class="kpi-card-mini">
+                            <span class="kpi-label-mini">Confirmed</span>
+                            <strong id="kpi-mini-confirmed" class="kpi-value-mini">-</strong>
+                        </div>
+                        <div class="kpi-card-mini">
+                            <span class="kpi-label-mini">Recovered</span>
+                            <strong id="kpi-mini-recovered" class="kpi-value-mini">-</strong>
+                        </div>
+                        <div class="kpi-card-mini">
+                            <span class="kpi-label-mini">Deaths</span>
+                            <strong id="kpi-mini-deaths" class="kpi-value-mini">-</strong>
+                        </div>
+                        <div class="kpi-card-mini">
+                            <span class="kpi-label-mini">Avg Incident</span>
+                            <strong id="kpi-mini-avg-incidence" class="kpi-value-mini">-</strong>
+                        </div>
+                        <div class="kpi-card-mini">
+                            <span class="kpi-label-mini">Avg Recovery</span>
+                            <strong id="kpi-mini-avg-recovery" class="kpi-value-mini">-</strong>
+                        </div>
+                        <div class="kpi-card-mini">
+                            <span class="kpi-label-mini">Avg Death</span>
+                            <strong id="kpi-mini-avg-death" class="kpi-value-mini">-</strong>
+                        </div>
+                        <div class="kpi-card-mini">
+                            <span class="kpi-label-mini">Mandals</span>
+                            <strong id="kpi-mini-mandals" class="kpi-value-mini">-</strong>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Case Analysis Card -->
+                <aside id="mandal-analysis-card" class="analysis-container">
+                    <h3 class="analysis-title">Mandal Case Analysis</h3>
+                    <div class="analysis-card-body">
+                        <div class="analysis-stats">
+                            <div class="analysis-stat-row">
+                                <span class="stat-label">Average Cases:</span>
+                                <strong id="val-avg-cases" class="stat-value">-</strong>
+                            </div>
+                            <div class="analysis-stat-row">
+                                <span class="stat-label">Mandals Above Avg:</span>
+                                <strong id="val-above-avg-count" class="stat-value">-</strong>
+                            </div>
+                            <div class="analysis-stat-row">
+                                <span class="stat-label">Percentage:</span>
+                                <strong id="val-above-avg-percent" class="stat-value">-</strong>
+                            </div>
+                        </div>
+                        <div class="pie-chart-column">
+                            <div class="pie-chart-box">
+                                <canvas id="above-avg-pie-chart" width="130" height="130"></canvas>
+                            </div>
+                            <button id="btn-show-above-avg-map" class="map-action-btn">Show in Map</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Color legend for pie chart slices -->
+                    <div class="pie-legend">
+                        <div class="pie-legend-item">
+                            <span class="legend-dot above"></span>
+                            <span class="legend-text">Above Average</span>
+                        </div>
+                        <div class="pie-legend-item">
+                            <span class="legend-dot below"></span>
+                            <span class="legend-text">Below / Equal Average</span>
+                        </div>
+                </aside>
+
+                <!-- Healthcare Availability Ranking Table Section -->
+                <aside id="nearby-facilities-card" class="ranking-table-container">
+                    <div class="analysis-header-row">
+                        <h3 class="analysis-title">Healthcare Availability Ranking</h3>
+                        <button id="btn-show-healthcare-ranking-map" class="map-action-btn">Show in Map</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="ranking-table">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Mandal</th>
+                                    <th>Population</th>
+                                    <th>Hospitals</th>
+                                    <th>Req.</th>
+                                    <th>Cov. %</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="healthcare-ranking-body">
+                                <!-- Filled dynamically by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </aside>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js?v=82"></script>
+</body>
+</html>

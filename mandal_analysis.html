@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mandal Analysis Report — Tirupati Medical GIS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="mandal_analysis.css?v=17">
+</head>
+<body>
+    <div id="app">
+        <!-- Floating Header -->
+        <header class="floating-header">
+            <h1 onclick="window.location.href='index.html'" style="cursor: pointer;">Tirupati-Medical GIS</h1>
+            <nav class="header-nav">
+                <a href="home.html" class="nav-link">Home</a>
+                <a href="index.html" class="nav-link">District Analysis</a>
+                <a href="mandal_analysis.html" class="nav-link active">Mandal Analysis</a>
+                <a href="index.html#nearby-facilities-card" class="nav-link">Nearby Facilities</a>
+            </nav>
+        </header>
+
+        <!-- Main Dashboard Column Wrapper -->
+        <div class="mandal-dashboard-row">
+            
+            <!-- Left Side: Selection & Leaflet Map -->
+            <div class="mandal-left-column">
+                <!-- Selector Card -->
+                <div class="mandal-profile-card">
+                    <div class="profile-header">
+                        <h2>Select Mandal</h2>
+                        <select id="mandal-dropdown" class="mandal-select-box">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="profile-stats">
+                        <div class="p-stat">
+                            <span class="p-label">Population</span>
+                            <strong id="mandal-profile-population" class="p-value">-</strong>
+                        </div>
+                        <div class="p-stat">
+                            <span class="p-label">District</span>
+                            <strong class="p-value">Tirupati</strong>
+                        </div>
+                        <div class="p-stat">
+                            <span class="p-label">Required Hospitals</span>
+                            <strong id="mandal-profile-required" class="p-value">-</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map Container Card -->
+                <div class="mandal-map-card">
+                    <div class="map-mode-controls">
+                        <button id="btn-leaflet" class="mode-btn active">Leaflet Map</button>
+                        <button id="btn-outline" class="mode-btn">Outline Map</button>
+                    </div>
+                    <div id="mandal-map"></div>
+                </div>
+
+                <!-- Incidence Rate Comparison Card -->
+                <div class="compare-row">
+                    <div class="compare-donut-card">
+                        <div class="compare-header-row">
+                            <h4 class="compare-title">Mandal Comparison</h4>
+                            <select id="compare-metric-select" class="compare-select-box">
+                                <option value="incidence_ratio">Incidence Ratio</option>
+                                <option value="recovery_ratio">Recovery Ratio</option>
+                                <option value="death_ratio">Death Ratio</option>
+                            </select>
+                        </div>
+                        <div class="compare-card-body">
+                            <div class="compare-info-left">
+                                <div class="compare-info-item" style="margin-bottom: 4px;">
+                                    <span class="compare-info-text" style="font-weight: 500; color: #38bdf8;"><span id="donut-selected-label">Incidence Ratio</span>: <strong id="donut-selected-val">-</strong></span>
+                                </div>
+                                <div class="compare-info-item">
+                                    <span class="legend-dot lower"></span>
+                                    <span class="compare-info-text">lower rate : <strong id="donut-lower-count">-</strong></span>
+                                </div>
+                                <div class="compare-info-item">
+                                    <span class="legend-dot higher"></span>
+                                    <span class="compare-info-text">higher rate : <strong id="donut-higher-count">-</strong></span>
+                                </div>
+                            </div>
+                            <div class="donut-wrapper">
+                                <div id="donut-chart" class="donut-chart"></div>
+                                <div class="donut-center-label">
+                                    <span id="donut-selected-rate">-</span>
+                                    <small>Selected</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="compare-card-footer">
+                            <button id="btn-show-compare-map" class="map-action-btn">Show Comparison in Map</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Detailed Reports & KPIs -->
+            <div class="mandal-right-column">
+                
+                <!-- Section 1: Disease Metrics -->
+                <div class="mandal-report-card">
+                    <div class="card-header-row">
+                        <h3 class="card-title">Disease Prevalence & Analysis</h3>
+                        <div class="disease-toggle-container">
+                            <button id="toggle-dengue" class="toggle-btn active">Dengue</button>
+                            <button id="toggle-malaria" class="toggle-btn">Malaria</button>
+                        </div>
+                    </div>
+                    
+                    <div class="report-kpi-grid">
+                        <div class="report-kpi-card danger">
+                            <span class="kpi-label">Total Cases</span>
+                            <strong id="rep-total-cases" class="kpi-value">-</strong>
+                        </div>
+                        <div class="report-kpi-card warning">
+                            <span class="kpi-label">Confirmed Cases</span>
+                            <strong id="rep-confirmed" class="kpi-value">-</strong>
+                        </div>
+                        <div class="report-kpi-card success">
+                            <span class="kpi-label">Recovered Cases</span>
+                            <strong id="rep-recovered" class="kpi-value">-</strong>
+                        </div>
+                        <div class="report-kpi-card info">
+                            <span class="kpi-label">Death Cases</span>
+                            <strong id="rep-deaths" class="kpi-value">-</strong>
+                        </div>
+                    </div>
+
+                    <div class="rate-bar-container">
+                        <div class="rate-item">
+                            <div class="rate-labels">
+                                <span>Incidence Ratio</span>
+                                <strong id="rep-ratio-incidence">-</strong>
+                            </div>
+                            <div class="progress-bg"><div id="bar-incidence" class="progress-bar-fill ratio-incidence"></div></div>
+                        </div>
+                        <div class="rate-item">
+                            <div class="rate-labels">
+                                <span>Recovery Ratio</span>
+                                <strong id="rep-ratio-recovery">-</strong>
+                            </div>
+                            <div class="progress-bg"><div id="bar-recovery" class="progress-bar-fill ratio-recovery"></div></div>
+                        </div>
+                        <div class="rate-item">
+                            <div class="rate-labels">
+                                <span>Death Ratio</span>
+                                <strong id="rep-ratio-death">-</strong>
+                            </div>
+                            <div class="progress-bg"><div id="bar-death" class="progress-bar-fill ratio-death"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Facility breakdown & density -->
+                <div class="mandal-report-card">
+                    <div class="card-header-row">
+                        <h3 class="card-title">Healthcare Facilities & Adequacy</h3>
+                        <span id="rep-adequacy-badge" class="status-badge status-sufficient">-</span>
+                    </div>
+
+                    <div class="facility-summary-stats">
+                        <div class="fac-stat">
+                            <span>Available Hospitals</span>
+                            <strong id="rep-avail-hospitals">-</strong>
+                        </div>
+                        <div class="fac-stat">
+                            <span>Healthcare Coverage</span>
+                            <strong id="rep-coverage-pct" class="coverage-highlight">-</strong>
+                        </div>
+                    </div>
+
+                    <div class="density-grid-large">
+                        <div class="density-card-large">
+                            <div class="density-card-header">
+                                <span class="density-card-title">VHC (Clinics)</span>
+                                <strong id="rep-count-vhc" class="density-card-count">-</strong>
+                            </div>
+                            <div class="density-card-val"><span id="rep-density-vhc">-</span> <span class="subtext">per 10k</span></div>
+                            <div class="density-bar-bg"><div id="bar-density-vhc" class="density-bar-fill"></div></div>
+                        </div>
+
+                        <div class="density-card-large">
+                            <div class="density-card-header">
+                                <span class="density-card-title">PHC (Primary)</span>
+                                <strong id="rep-count-phc" class="density-card-count">-</strong>
+                            </div>
+                            <div class="density-card-val"><span id="rep-density-phc">-</span> <span class="subtext">per 10k</span></div>
+                            <div class="density-bar-bg"><div id="bar-density-phc" class="density-bar-fill"></div></div>
+                        </div>
+
+                        <div class="density-card-large">
+                            <div class="density-card-header">
+                                <span class="density-card-title">UPHC (Urban)</span>
+                                <strong id="rep-count-uphc" class="density-card-count">-</strong>
+                            </div>
+                            <div class="density-card-val"><span id="rep-density-uphc">-</span> <span class="subtext">per 10k</span></div>
+                            <div class="density-bar-bg"><div id="bar-density-uphc" class="density-bar-fill"></div></div>
+                        </div>
+
+                        <div class="density-card-large">
+                            <div class="density-card-header">
+                                <span class="density-card-title">CHC (Community)</span>
+                                <strong id="rep-count-chc" class="density-card-count">-</strong>
+                            </div>
+                            <div class="density-card-val"><span id="rep-density-chc">-</span> <span class="subtext">per 10k</span></div>
+                            <div class="density-bar-bg"><div id="bar-density-chc" class="density-bar-fill"></div></div>
+                        </div>
+
+                        <div class="density-card-large">
+                            <div class="density-card-header">
+                                <span class="density-card-title">AH (Area Hospital)</span>
+                                <strong id="rep-count-ah" class="density-card-count">-</strong>
+                            </div>
+                            <div class="density-card-val"><span id="rep-density-ah">-</span> <span class="subtext">per 10k</span></div>
+                            <div class="density-bar-bg"><div id="bar-density-ah" class="density-bar-fill"></div></div>
+                        </div>
+
+                        <div class="density-card-large">
+                            <div class="density-card-header">
+                                <span class="density-card-title">TH (Teaching)</span>
+                                <strong id="rep-count-th" class="density-card-count">-</strong>
+                            </div>
+                            <div class="density-card-val"><span id="rep-density-th">-</span> <span class="subtext">per 10k</span></div>
+                            <div class="density-bar-bg"><div id="bar-density-th" class="density-bar-fill"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Medical Facilities Comparison Table -->
+                <div class="compare-facilities-card">
+                    <div class="compare-header-row">
+                        <h4 class="compare-title">Facility Comparison</h4>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <div class="facility-toggle-tabs">
+                                <button id="tab-facility-greater" class="facility-tab-btn active">Greater (<span id="count-greater">-</span>)</button>
+                                <button id="tab-facility-less" class="facility-tab-btn">Less (<span id="count-less">-</span>)</button>
+                            </div>
+                            <button id="btn-show-facility-map" class="map-action-btn" style="width: auto; padding: 4px 10px; font-size: 0.72rem; margin: 0;">Show Comparison in Map</button>
+                        </div>
+                    </div>
+                    <div class="facilities-table-wrapper">
+                        <table class="facilities-compare-table">
+                            <thead>
+                                <tr>
+                                    <th>Mandal</th>
+                                    <th>Facilities</th>
+                                    <th>Selected</th>
+                                    <th>Difference</th>
+                                </tr>
+                            </thead>
+                            <tbody id="facilities-compare-tbody">
+                                <!-- Dynamic rows populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="mandal_analysis.js?v=17"></script>
+</body>
+</html>
