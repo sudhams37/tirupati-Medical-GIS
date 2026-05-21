@@ -9,6 +9,83 @@ document.addEventListener('DOMContentLoaded', () => {
         position: 'topright'
     }).addTo(map);
 
+    // Color-coded markers with SVG symbols for each medical facility type
+    function getFacilityIcon(type) {
+        let color = '#ef4444'; // default red
+        let svg = '';
+        const lowerType = (type || '').toLowerCase();
+        
+        // Define SVGs for different types
+        const hospitalSvg = `
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+        `;
+        
+        const clinicSvg = `
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="8" width="18" height="12" rx="2" ry="2"></rect>
+                <path d="M16 8V6a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"></path>
+                <line x1="12" y1="11" x2="12" y2="17"></line>
+                <line x1="9" y1="14" x2="15" y2="14"></line>
+            </svg>
+        `;
+        
+        const pharmacySvg = `
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4.5 16.5L16.5 4.5a4.24 4.24 0 1 1 6 6L10.5 22.5a4.24 4.24 0 1 1-6-6z"></path>
+                <line x1="8.5" y1="12.5" x2="12.5" y2="8.5"></line>
+            </svg>
+        `;
+        
+        const specialistSvg = `
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4.5 10.5v-2a8 8 0 0 1 16 0v2"></path>
+                <path d="M12 14v4.5a2.5 2.5 0 0 0 5 0v-4.5"></path>
+                <circle cx="12" cy="11.5" r="2.5"></circle>
+            </svg>
+        `;
+
+        if (lowerType.includes('clinic') || lowerType.includes('vhc') || lowerType.includes('phc')) {
+            color = '#38bdf8'; // light blue
+            svg = clinicSvg;
+        } else if (lowerType.includes('pharmacy') || lowerType.includes('kendra') || lowerType.includes('store') || lowerType.includes('chemist')) {
+            color = '#10b981'; // green
+            svg = pharmacySvg;
+        } else if (lowerType.includes('hospital') || lowerType.includes('uphc')) {
+            color = '#f43f5e'; // rose/red
+            svg = hospitalSvg;
+        } else {
+            color = '#a855f7'; // purple for dentist/doctors/diagnostic/default
+            svg = specialistSvg;
+        }
+
+        // Return a beautiful marker with a glowing shadow
+        return L.divIcon({
+            html: `
+                <div style="
+                    background-color: ${color}; 
+                    color: #ffffff; 
+                    border: 2px solid #ffffff; 
+                    width: 24px; 
+                    height: 24px; 
+                    border-radius: 50%; 
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.4), 0 0 6px ${color}; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center;
+                    cursor: pointer;
+                " class="facility-map-marker">
+                    ${svg}
+                </div>
+            `,
+            className: 'custom-facility-icon',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+    }
+
     // Custom Refresh Control to clear selections
     const RefreshControl = L.Control.extend({
         options: {
@@ -226,15 +303,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         const amenityFormatted = amenity.charAt(0).toUpperCase() + amenity.slice(1);
                         const dist = parseFloat((map.distance(center, [plat, plon]) / 1000).toFixed(2));
 
-                        // Purple markers for Health Resources
-                        const resourceIcon = L.divIcon({
-                            html: '<div style="background-color: #a855f7; border: 2px solid #ffffff; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 8px rgba(0,0,0,0.5);"></div>',
-                            className: 'custom-resource-icon',
-                            iconSize: [12, 12],
-                            iconAnchor: [6, 6]
-                        });
-
-                        const marker = L.marker([plat, plon], { icon: resourceIcon })
+                        // Custom SVG markers for Health Resources
+                        const marker = L.marker([plat, plon], { icon: getFacilityIcon(amenityFormatted) })
                             .bindPopup(`<strong>${name}</strong><br>Type: ${amenityFormatted}<br>Mandal: ${mandalName}`)
                             .addTo(searchLayers);
 
@@ -484,14 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const amenityFormatted = amenity.charAt(0).toUpperCase() + amenity.slice(1);
                         const dist = parseFloat((map.distance([lat, lon], [plat, plon]) / 1000).toFixed(2));
 
-                        const hospitalIcon = L.divIcon({
-                            html: '<div style="background-color: #ef4444; border: 2px solid #ffffff; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 8px rgba(0,0,0,0.5);"></div>',
-                            className: 'custom-hospital-icon',
-                            iconSize: [12, 12],
-                            iconAnchor: [6, 6]
-                        });
-
-                        const marker = L.marker([plat, plon], { icon: hospitalIcon })
+                        const marker = L.marker([plat, plon], { icon: getFacilityIcon(amenityFormatted) })
                             .bindPopup(`<strong>${name}</strong><br>Type: ${amenityFormatted}<br>Distance: ${dist} km`)
                             .addTo(searchLayers);
 
@@ -668,14 +731,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const type = facilityTypes[i % facilityTypes.length];
             const dist = parseFloat(distance.toFixed(2));
 
-            const hospitalIcon = L.divIcon({
-                html: '<div style="background-color: #ef4444; border: 2px solid #ffffff; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 8px rgba(0,0,0,0.5);"></div>',
-                className: 'custom-hospital-icon',
-                iconSize: [12, 12],
-                iconAnchor: [6, 6]
-            });
-
-            const marker = L.marker([plat, plon], { icon: hospitalIcon })
+            const marker = L.marker([plat, plon], { icon: getFacilityIcon(type) })
                 .bindPopup(`<strong>${name}</strong><br>Type: ${type}<br>Distance: ${dist} km`)
                 .addTo(searchLayers);
 

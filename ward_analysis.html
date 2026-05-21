@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ward Spatial Analysis — Tirupati Medical GIS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="ward_analysis.css?v=84">
+</head>
+<body>
+    <div id="app">
+        <!-- Floating Header -->
+        <header class="floating-header">
+            <div onclick="window.location.href='index.html'" style="cursor: pointer; display: flex; align-items: center; gap: 12px;">
+                <img src="logo.svg" alt="Logo" style="height: 38px; width: 38px; object-fit: contain;">
+                <div style="display: flex; flex-direction: column;">
+                    <h1 style="margin: 0; font-size: 1.6rem; line-height: 1.2;">Tirupati-Medical GIS</h1>
+                    <span style="font-size: 0.72rem; color: #94a3b8; font-weight: 500; letter-spacing: 0.5px; margin-top: 2px;">Medical Resources &amp; Disease Analysis . Andhra Pradesh</span>
+                </div>
+            </div>
+            <nav class="header-nav">
+                <div class="nav-links-wrapper" style="display: flex; align-items: center; gap: 20px;">
+                    <a href="home.html" class="nav-link" style="display: inline-flex; align-items: center; gap: 6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        <span>Home</span>
+                    </a>
+                    <a href="index.html" class="nav-link" style="display: inline-flex; align-items: center; gap: 6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                            <path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z"></path>
+                            <path d="M9 3v15"></path>
+                            <path d="M15 6v15"></path>
+                        </svg>
+                        <span>District Analysis</span>
+                    </a>
+                    <a href="mandal_analysis.html" class="nav-link" style="display: inline-flex; align-items: center; gap: 6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                            <polyline points="2 17 12 22 22 17"></polyline>
+                            <polyline points="2 12 12 17 22 12"></polyline>
+                        </svg>
+                        <span>Mandal Analysis</span>
+                    </a>
+                    <a href="nearby_facilities.html" class="nav-link" style="display: inline-flex; align-items: center; gap: 6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <span>Facilities</span>
+                    </a>
+                    <a href="ward_analysis.html" class="nav-link active" style="display: inline-flex; align-items: center; gap: 6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="9" y1="3" x2="9" y2="21"></line>
+                            <line x1="15" y1="3" x2="15" y2="21"></line>
+                            <line x1="3" y1="9" x2="21" y2="9"></line>
+                            <line x1="3" y1="15" x2="21" y2="15"></line>
+                        </svg>
+                        <span>Ward Analysis</span>
+                    </a>
+                </div>
+            </nav>
+        </header>
+
+        <!-- KPI Summary Bar -->
+        <div class="ward-summary-bar">
+            <div class="summary-card">
+                <span class="card-label">Total Wards</span>
+                <strong class="card-val highlight">101 Wards</strong>
+            </div>
+            <div class="summary-card">
+                <span class="card-label">Average Area</span>
+                <strong class="card-val">35.58 Hectares</strong>
+            </div>
+            <div class="summary-card">
+                <span class="card-label">Total Town Area</span>
+                <strong class="card-val highlight">35.93 sq km</strong>
+            </div>
+            <div class="summary-card">
+                <span class="card-label">Largest Ward</span>
+                <strong class="card-val">Ward No 46</strong>
+            </div>
+            <div class="summary-card">
+                <span class="card-label">Smallest Ward</span>
+                <strong class="card-val">Ward No 47</strong>
+            </div>
+        </div>
+
+        <!-- Dashboard Main Layout -->
+        <div class="ward-dashboard-row">
+            <!-- Left Column: Map -->
+            <div class="ward-left-column">
+                <div class="ward-map-card">
+                    <div class="map-controls-bar">
+                        <div class="map-mode-controls">
+                            <button id="btn-outline" class="mode-btn active">Outline Map</button>
+                            <button id="btn-leaflet" class="mode-btn">Google Map</button>
+                        </div>
+                    </div>
+                    <div id="ward-map"></div>
+                </div>
+
+                <!-- Facilities Table Card -->
+                <div class="ward-sidebar-card ward-table-card">
+                    <div class="card-title-row">
+                        <h3>Medical Facilities in <span id="table-ward-name" class="highlight">-</span></h3>
+                        <span id="facility-count-badge" class="badge-count" style="display: none;">0 Facilities</span>
+                    </div>
+                    <div id="table-placeholder" class="detail-placeholder">
+                        Select a ward on the map or from the list to display its medical facilities list.
+                    </div>
+                    <div id="table-container" class="ward-table-container" style="display: none;">
+                        <table class="facilities-table">
+                            <thead>
+                                <tr>
+                                    <th>S.No</th>
+                                    <th>Facility Name</th>
+                                    <th>Type</th>
+                                    <th>Latitude</th>
+                                    <th>Longitude</th>
+                                    <th style="text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="facilities-table-body">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Sidebar Panels -->
+            <div class="ward-right-column">
+                <!-- Selected Ward Details Panel -->
+                <div class="ward-sidebar-card">
+                    <div class="card-title-row">
+                        <h3>Selected Ward Details</h3>
+                    </div>
+                    <div id="detail-placeholder" class="detail-placeholder">
+                        Click a ward on the map or select from the list below to view detailed spatial properties.
+                    </div>
+                    <div id="detail-content" class="detail-grid" style="display: none;">
+                        <div class="detail-row">
+                            <span class="detail-label">Ward Name:</span>
+                            <strong id="detail-name" class="detail-value highlight">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Ward Code:</span>
+                            <strong id="detail-code" class="detail-value">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Shape Area:</span>
+                            <strong id="detail-area-sqm" class="detail-value">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Calculated Area:</span>
+                            <strong id="detail-area-acres" class="detail-value">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Perimeter:</span>
+                            <strong id="detail-perimeter-m" class="detail-value">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Town:</span>
+                            <strong id="detail-town" class="detail-value">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">District:</span>
+                            <strong id="detail-district" class="detail-value">-</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hospital Adequacy Analysis Panel -->
+                <div class="ward-sidebar-card">
+                    <div class="card-title-row">
+                        <h3>Hospital Adequacy Analysis</h3>
+                    </div>
+                    
+                    <!-- Selected Ward Adequacy details -->
+                    <div id="adequacy-placeholder" class="detail-placeholder">
+                        Select a ward on the map to analyze hospital capacity and sufficiency.
+                    </div>
+                    <div id="adequacy-content" class="detail-grid" style="display: none;">
+                        <div class="detail-row">
+                            <span class="detail-label">Ward Population:</span>
+                            <strong id="adequacy-population" class="detail-value">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Available Hospitals:</span>
+                            <strong id="adequacy-hospitals" class="detail-value highlight">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Treatable Capacity:</span>
+                            <strong id="adequacy-capacity" class="detail-value">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Treats All Population:</span>
+                            <strong id="adequacy-treats-all" class="detail-value">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Hospital Capacity:</span>
+                            <span id="adequacy-status-badge" class="status-badge">-</span>
+                        </div>
+                        <div class="detail-row" style="flex-direction: column; align-items: flex-start; gap: 4px; border-bottom: none; padding-bottom: 0;">
+                            <span class="detail-label">Analysis:</span>
+                            <span id="adequacy-description" class="detail-value" style="text-align: left; font-size: 0.75rem; font-weight: normal; color: #cbd5e1; line-height: 1.4;">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Divider -->
+                    <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 15px 0;"></div>
+
+                    <!-- Overall Wards Sufficiency Pie Chart -->
+                    <div class="card-title-row" style="border-bottom: none; margin-bottom: 8px; padding-bottom: 0;">
+                        <h3 style="font-size: 1.05rem;">Overall Ward Sufficiency</h3>
+                    </div>
+                    <div class="chart-container-row" style="display: flex; align-items: center; justify-content: space-around; gap: 15px;">
+                        <!-- Donut chart box -->
+                        <div class="donut-wrapper" style="position: relative; width: 100px; height: 100px; flex-shrink: 0;">
+                            <div id="ward-adequacy-donut" class="donut-chart" style="width: 100px; height: 100px; border-radius: 50%; background: conic-gradient(#94a3b8 0deg 360deg); transition: background 0.6s ease;"></div>
+                            <div class="donut-center-label" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; border-radius: 50%; background: rgba(15, 23, 42, 0.95); display: flex; align-items: center; justify-content: center; text-align: center; border: 1px solid rgba(255, 255, 255, 0.05);">
+                                <span id="ward-adequacy-percent" style="font-size: 0.85rem; font-weight: 700; color: #38bdf8;">0%</span>
+                            </div>
+                        </div>
+                        <!-- Legend metrics -->
+                        <div class="chart-legend-metrics" style="display: flex; flex-direction: column; gap: 8px; font-size: 0.75rem;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="legend-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+                                <span style="color: #94a3b8;">Sufficient: <strong id="count-sufficient" style="color: #ffffff;">-</strong></span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="legend-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span>
+                                <span style="color: #94a3b8;">Insufficient: <strong id="count-insufficient" style="color: #ffffff;">-</strong></span>
+                            </div>
+                            <button id="btn-show-insufficient" class="btn-table-action" style="margin-top: 4px; padding: 4px 8px; font-size: 0.65rem; width: 100%; border-radius: 4px; text-align: center; text-transform: uppercase;">Show in Map</button>
+                        </div>
+                    </div>
+                </div>
+
+
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="ward_analysis.js"></script>
+</body>
+</html>
