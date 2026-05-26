@@ -271,6 +271,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (searchInput) {
             searchInput.addEventListener('input', handleSearch);
         }
+
+        // Select Ward 1 by default
+        if (geojsonLayer) {
+            geojsonLayer.eachLayer(layer => {
+                if (String(layer.feature.properties.code) === "1") {
+                    selectWard(layer.feature, layer);
+                }
+            });
+        }
     })
     .catch(error => {
         console.error("Error loading datasets:", error);

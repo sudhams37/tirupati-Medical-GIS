@@ -183,8 +183,9 @@
 
                 <!-- Healthcare Capacity Panel -->
                 <div class="dashboard-card sidebar-card">
-                    <div class="card-header">
-                        <h3>Mandal Cure Capacity</h3>
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0;">Mandal Cure Capacity</h3>
+                        <button id="show-capacity-map-btn" style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 0.75rem; transition: all 0.2s;">Show in Map</button>
                     </div>
                     <div class="chart-wrapper-small" style="position:relative; height: 180px;">
                         <canvas id="capacity-donut-chart"></canvas>

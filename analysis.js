@@ -368,4 +368,75 @@ document.addEventListener('DOMContentLoaded', () => {
             updateAllCharts();
         });
     });
+
+    // 7. Show Cure Capacity on Map
+    const showCapacityBtn = document.getElementById('show-capacity-map-btn');
+    if (showCapacityBtn) {
+        showCapacityBtn.addEventListener('click', () => {
+            // Get current capacity data
+            const disease = document.getElementById('disease-model-select').value;
+            const timeframe = parseInt(document.getElementById('time-frame-select').value);
+            
+            let sufficient = 24;
+            let insufficient = 10;
+            
+            if (disease === 'dengue') {
+                sufficient -= timeframe;
+                insufficient += timeframe;
+            } else {
+                sufficient -= Math.floor(timeframe / 2);
+                insufficient += Math.floor(timeframe / 2);
+            }
+
+            if (heatLayer) map.removeLayer(heatLayer);
+            heatLayer = L.featureGroup().addTo(map);
+
+            // Get existing layers to avoid re-parsing geojson
+            const layers = [];
+            choroplethLayer.eachLayer(layer => {
+                layers.push(layer);
+            });
+
+            // Sort features to pick 'insufficient' ones based on highest intensity
+            layers.sort((a, b) => b.feature.properties.intensity - a.feature.properties.intensity);
+
+            layers.forEach((layer, index) => {
+                const feature = layer.feature;
+                const isInsufficient = index < insufficient;
+                const center = layer.getBounds().getCenter();
+                
+                const marker = L.circleMarker(center, {
+                    radius: isInsufficient ? 12 : 8,
+                    fillColor: isInsufficient ? '#f43f5e' : '#10b981', // Red for insufficient, Green for sufficient
+                    color: '#ffffff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.9
+                });
+                
+                if (isInsufficient) {
+                    marker.setStyle({
+                        shadowColor: '#f43f5e',
+                        shadowBlur: 10
+                    });
+                }
+                
+                marker.bindPopup(`<b>${feature.properties.mandal || feature.properties.name}</b><br>Capacity Status: <b>${isInsufficient ? 'Insufficient 🚨' : 'Sufficient ✅'}</b>`);
+                heatLayer.addLayer(marker);
+            });
+
+            // Button feedback
+            const originalText = showCapacityBtn.textContent;
+            showCapacityBtn.textContent = "Showing on Map...";
+            showCapacityBtn.style.background = "rgba(56, 189, 248, 0.3)";
+            
+            // Re-fit bounds
+            map.fitBounds(heatLayer.getBounds(), { padding: [20, 20] });
+            
+            setTimeout(() => {
+                showCapacityBtn.textContent = originalText;
+                showCapacityBtn.style.background = "rgba(56, 189, 248, 0.1)";
+            }, 3000);
+        });
+    }
 });
