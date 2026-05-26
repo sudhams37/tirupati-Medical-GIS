@@ -503,7 +503,7 @@ path.leaflet-interactive:focus,
 
 .ward-table-container {
     overflow-y: auto;
-    max-height: 250px;
+    max-height: 156px;
     margin-top: 10px;
     padding-right: 4px;
 }
