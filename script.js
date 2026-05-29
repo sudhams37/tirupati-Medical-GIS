@@ -139,11 +139,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fetch all datasets: GeoJSON, Mandals list, Dengue data, Malaria data, and Hospitals data
     const timestamp = new Date().getTime();
     Promise.all([
-        fetch(`datasets/ap_mandals.geojson?v=${timestamp}`).then(r => r.json()),
-        fetch(`datasets/tirupati-district-mandals.txt?v=${timestamp}`).then(r => r.text()),
-        fetch(`datasets/dengue.json?v=${timestamp}`).then(r => r.json()),
-        fetch(`datasets/malaria.json?v=${timestamp}`).then(r => r.json()),
-        fetch(`datasets/mandal wise no of hospitals.json?v=${timestamp}`).then(r => r.json())
+        fetchDataset(`datasets/ap_mandals.geojson?v=${timestamp}`).then(g => assertGeoJson(g, 'ap_mandals.geojson')),
+        fetchDataset(`datasets/tirupati-district-mandals.txt?v=${timestamp}`, 'text'),
+        fetchDataset(`datasets/dengue.json?v=${timestamp}`),
+        fetchDataset(`datasets/malaria.json?v=${timestamp}`),
+        fetchDataset(`datasets/mandal wise no of hospitals.json?v=${timestamp}`)
     ])
     .then(([geojson, mandalsText, dengueList, malariaList, hospitalsList]) => {
         rawGeojsonData = geojson;
@@ -462,6 +462,10 @@ document.addEventListener('DOMContentLoaded', () => {
     })
     .catch(error => {
         console.error('Error loading data:', error);
+        showDataLoadError(
+            'Could not load map data. Run "python run.py" and open the URL shown in the terminal (port 8080). ' +
+            'If you use port 8000, another app may be blocking dataset files.'
+        );
     });
 
     // Helper to calculate style based on disease metrics (Choropleth styling)

@@ -23,8 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fetch GeoJSON and filter for Tirupati Mandals
     Promise.all([
-        fetch('datasets/ap_mandals.geojson').then(r => r.json()),
-        fetch('datasets/tirupati-district-mandals.txt').then(r => r.text())
+        fetchDataset('datasets/ap_mandals.geojson').then(g => assertGeoJson(g, 'ap_mandals.geojson')),
+        fetchDataset('datasets/tirupati-district-mandals.txt', 'text')
     ]).then(([geojson, mandalsText]) => {
         const allowedMandalsRaw = mandalsText.split('\n').map(name => sanitize(name)).filter(name => name.length > 2);
         const aliases = { 'kumaravenkatabhupalapuram': 'kvbpuram' };
@@ -50,6 +50,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         updateMapData();
+    }).catch(err => {
+        console.error('Error loading trend analysis data:', err);
+        showDataLoadError(
+            'Could not load map data. Run "python run.py" and open the URL shown in the terminal (port 8080).'
+        );
     });
 
     function updateMapData() {

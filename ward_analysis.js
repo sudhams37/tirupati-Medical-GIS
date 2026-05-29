@@ -244,14 +244,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load Datasets: Ward GeoJSON and Population/Hospital data
     const timestamp = new Date().getTime();
     Promise.all([
-        fetch(`datasets/sample.geojson?v=${timestamp}`).then(r => {
-            if (!r.ok) throw new Error("Failed to load sample.geojson");
-            return r.json();
-        }),
-        fetch(`datasets/ward_population_hospitals.json?v=${timestamp}`).then(r => {
-            if (!r.ok) throw new Error("Failed to load ward_population_hospitals.json");
-            return r.json();
-        })
+        fetchDataset(`datasets/sample.geojson?v=${timestamp}`).then(g => assertGeoJson(g, 'sample.geojson')),
+        fetchDataset(`datasets/ward_population_hospitals.json?v=${timestamp}`)
     ])
     .then(([geojsonVal, wardStatsVal]) => {
         allWardsFeatures = geojsonVal.features || [];
@@ -284,6 +278,9 @@ document.addEventListener('DOMContentLoaded', () => {
     .catch(error => {
         console.error("Error loading datasets:", error);
         detailPlaceholder.textContent = "Error loading ward boundaries dataset.";
+        showDataLoadError(
+            'Could not load ward data. Run "python run.py" and open the URL shown in the terminal (port 8080).'
+        );
     });
 
     // Render the GeoJSON layer

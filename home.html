@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home — Tirupati Medical GIS</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="home.css?v=86">
+    <link rel="stylesheet" href="home.css?v=101">
 </head>
 
 <body>
@@ -72,18 +72,90 @@
             </nav>
         </header>
 
-        <main class="home-hero">
-            <h2 class="hero-title">Welcome to Tirupati Medical GIS</h2>
-            <p class="hero-subtitle">
-                A comprehensive geospatial dashboard designed to monitor, analyze,
-                and visualize healthcare resources and disease prevalence across Tirupati district.
-            </p>
-            <p class="hero-description">
-                Explore our detailed district-level analytics, view individual mandal breakdowns, and discover the
-                availability of critical medical facilities to enable better public health planning.
-            </p>
+        <main class="home-hero hero-highlight-container" onmousemove="handleHeroMouseMove(event)">
+            <div class="hero-highlight-dots-static"></div>
+            <div class="hero-highlight-dots-interactive"></div>
+            <div style="position: relative; z-index: 20; width: 100%; max-width: 100%; display: flex; flex-direction: column; align-items: center;">
+                <h2 class="hero-title">
+                    Welcome to 
+                    <span class="gradient-text-wrapper">
+                        <span style="position: relative; z-index: 10;">Tirupati Medical GIS</span>
+                        <span class="gradient-text-blobs">
+                            <span class="blob blob-1"></span>
+                            <span class="blob blob-2"></span>
+                            <span class="blob blob-3"></span>
+                            <span class="blob blob-4"></span>
+                        </span>
+                    </span>
+                </h2>
+                <p class="hero-subtitle">
+                    A comprehensive geospatial dashboard designed to <span class="text-highlight">monitor, analyze, and visualize healthcare resources and disease</span> across Tirupati district.
+                </p>
+                <p class="hero-description">
+                    Explore our detailed <span class="text-highlight">district-level analytics, view individual mandal breakdowns, and discover the
+                    availability of medical facilities </span>for better public health planning.
+                </p>
+
+                <div class="circular-reveal-container">
+                    <div class="circular-images">
+                        <img id="img-district" src="district_analysis_map.png" class="circular-img" alt="">
+                        <img id="img-mandal" src="mandal_analysis_map.png" class="circular-img" alt="">
+                        <img id="img-facilities" src="facilities_map.png" class="circular-img" alt="">
+                        <img id="img-ward" src="ward_analysis_map.png" class="circular-img" alt="">
+                        <img id="img-trend" src="trend_analysis_map.png" class="circular-img" alt="">
+                    </div>
+
+                    <div class="circular-center-text" id="circular-center-text">
+                        TIRUPATI MEDICAL GIS
+                    </div>
+
+                    <svg viewBox="0 0 400 400" class="circular-svg">
+                        <defs>
+                            <path id="circle-curve" fill="none" d="M 200,200 m -160,0 a 160,160 0 1,1 320,0 a 160,160 0 1,1 -320,0" />
+                            <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#38bdf8" />
+                                <stop offset="100%" stop-color="#818cf8" />
+                            </linearGradient>
+                        </defs>
+                        <text class="circular-text" onmouseenter="showCircularImage('img-district')" onmouseleave="hideCircularImages()">
+                            <textPath href="#circle-curve" startOffset="0%" textLength="14%" lengthAdjust="spacingAndGlyphs">DISTRICT ANALYSIS</textPath>
+                        </text>
+                        <text class="circular-text" onmouseenter="showCircularImage('img-mandal')" onmouseleave="hideCircularImages()">
+                            <textPath href="#circle-curve" startOffset="20%" textLength="14%" lengthAdjust="spacingAndGlyphs">MANDAL ANALYSIS</textPath>
+                        </text>
+                        <text class="circular-text" onmouseenter="showCircularImage('img-facilities')" onmouseleave="hideCircularImages()">
+                            <textPath href="#circle-curve" startOffset="40%" textLength="14%" lengthAdjust="spacingAndGlyphs">FACILITIES</textPath>
+                        </text>
+                        <text class="circular-text" onmouseenter="showCircularImage('img-ward')" onmouseleave="hideCircularImages()">
+                            <textPath href="#circle-curve" startOffset="60%" textLength="14%" lengthAdjust="spacingAndGlyphs">WARD ANALYSIS</textPath>
+                        </text>
+                        <text class="circular-text" onmouseenter="showCircularImage('img-trend')" onmouseleave="hideCircularImages()">
+                            <textPath href="#circle-curve" startOffset="80%" textLength="14%" lengthAdjust="spacingAndGlyphs">TREND ANALYSIS</textPath>
+                        </text>
+                    </svg>
+                </div>
+            </div>
         </main>
     </div>
+    <script>
+        function handleHeroMouseMove(e) {
+            const container = e.currentTarget;
+            const rect = container.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            container.style.setProperty('--mouse-x', `${x}px`);
+            container.style.setProperty('--mouse-y', `${y}px`);
+        }
+    
+        function showCircularImage(id) {
+            document.getElementById('circular-center-text').style.opacity = '0';
+            document.getElementById(id).classList.add('active');
+        }
+        function hideCircularImages() {
+            document.getElementById('circular-center-text').style.opacity = '1';
+            document.querySelectorAll('.circular-img').forEach(img => img.classList.remove('active'));
+        }
+</script>
 </body>
 
 </html>

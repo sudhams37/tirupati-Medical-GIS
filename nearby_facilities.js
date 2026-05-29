@@ -10,10 +10,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }).addTo(map);
 
     // Color-coded markers with SVG symbols for each medical facility type
-    function getFacilityIcon(type) {
+    let highlightedFacility = null;
+
+    function getFacilityIcon(type, highlighted) {
         let color = '#ef4444'; // default red
         let svg = '';
         const lowerType = (type || '').toLowerCase();
+        const size = highlighted ? 32 : 24;
+        const anchor = highlighted ? 16 : 12;
+        const extraClass = highlighted ? ' facility-map-marker-active' : '';
         
         // Define SVGs for different types
         const hospitalSvg = `
@@ -67,23 +72,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div style="
                     background-color: ${color}; 
                     color: #ffffff; 
-                    border: 2px solid #ffffff; 
-                    width: 24px; 
-                    height: 24px; 
+                    border: ${highlighted ? '3px' : '2px'} solid #ffffff; 
+                    width: ${size}px; 
+                    height: ${size}px; 
                     border-radius: 50%; 
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.4), 0 0 6px ${color}; 
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.4), 0 0 ${highlighted ? '14px' : '6px'} ${color}; 
                     display: flex; 
                     align-items: center; 
                     justify-content: center;
                     cursor: pointer;
-                " class="facility-map-marker">
+                " class="facility-map-marker${extraClass}">
                     ${svg}
                 </div>
             `,
             className: 'custom-facility-icon',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
+            iconSize: [size, size],
+            iconAnchor: [anchor, anchor]
         });
+    }
+
+    function getHighlightedFacilityIcon(type) {
+        return getFacilityIcon(type, true);
     }
 
     // Custom Refresh Control to clear selections
@@ -119,12 +128,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 selectedLayer = null;
 
-                // 3. Clear search markers & circles layer
+                // 3. Clear search markers, routes & circles layer
                 searchLayers.clearLayers();
+                clearActiveRoute();
+                currentRouteOrigin = null;
 
                 // 4. Hide results table
                 document.getElementById('search-results-table-card').style.display = 'none';
                 document.getElementById('results-table-body').innerHTML = '';
+                clearTableExportContext();
 
                 // 5. Hide sidebar details and show the selection placeholder
                 document.getElementById('sidebar-mandal-details').style.display = 'none';
@@ -141,12 +153,302 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let mandalsGeojsonLayer = null;
     let searchLayers = L.layerGroup().addTo(map);
+    let routeLayers = L.layerGroup().addTo(map);
+    let activeRouteLine = null;
+    let currentRouteOrigin = null;
+
+    // High z-index pane so route line draws above mandal polygons
+    if (!map.getPane('routePane')) {
+        map.createPane('routePane');
+        map.getPane('routePane').style.zIndex = 680;
+    }
 
     // Dark-styled map background layer
     const baseTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
         subdomains: 'abcd',
         maxZoom: 20
     }).addTo(map);
+
+    const googleTileLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        attribution: '&copy; Google Maps'
+    });
+
+    function getOriginIcon(label) {
+        return L.divIcon({
+            html: `<div title="${label}" style="background-color: #22c55e; border: 3px solid #ffffff; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 12px rgba(34,197,94,0.8);"></div>`,
+            className: 'route-origin-icon',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+        });
+    }
+
+    function formatRouteDuration(seconds) {
+        const minutes = Math.round(seconds / 60);
+        if (minutes < 1) return 'Under 1 min';
+        if (minutes < 60) return `${minutes} mins`;
+        const hrs = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return mins > 0 ? `${hrs} hr ${mins} mins` : `${hrs} hr`;
+    }
+
+    function buildGoogleMapsDirectionsUrl(originLat, originLng, destLat, destLng) {
+        return `https://www.google.com/maps/dir/?api=1&origin=${originLat},${originLng}&destination=${destLat},${destLng}&travelmode=driving`;
+    }
+
+    function normalizeCoords(point) {
+        const lat = Number(point.lat);
+        const lng = Number(point.lng != null ? point.lng : point.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            return null;
+        }
+        return { lat, lng };
+    }
+
+    function clearActiveRoute() {
+        if (highlightedFacility && highlightedFacility.marker) {
+            highlightedFacility.marker.setIcon(getFacilityIcon(highlightedFacility.type));
+        }
+        highlightedFacility = null;
+        routeLayers.clearLayers();
+        if (activeRouteLine) {
+            map.removeLayer(activeRouteLine);
+            activeRouteLine = null;
+        }
+        if (mandalsGeojsonLayer) {
+            mandalsGeojsonLayer.eachLayer(layer => {
+                layer.setStyle({ fillOpacity: 0.3 });
+            });
+        }
+        if (map.hasLayer(googleTileLayer)) {
+            map.removeLayer(googleTileLayer);
+        }
+        if (!map.hasLayer(baseTileLayer)) {
+            baseTileLayer.addTo(map);
+        }
+    }
+
+    function enableGoogleMapView() {
+        if (!map.hasLayer(googleTileLayer)) {
+            googleTileLayer.addTo(map);
+        }
+        if (mandalsGeojsonLayer) {
+            mandalsGeojsonLayer.eachLayer(layer => {
+                layer.setStyle({ fillOpacity: 0.15 });
+            });
+        }
+        searchLayers.bringToFront();
+    }
+
+    function enableGoogleMapForRoute() {
+        enableGoogleMapView();
+        routeLayers.bringToFront();
+    }
+
+    function setRouteLine(latLngs, dashed) {
+        if (activeRouteLine) {
+            map.removeLayer(activeRouteLine);
+            activeRouteLine = null;
+        }
+        activeRouteLine = L.polyline(latLngs, {
+            color: '#1a73e8',
+            weight: 7,
+            opacity: 0.95,
+            lineJoin: 'round',
+            lineCap: 'round',
+            dashArray: dashed ? '10, 10' : null,
+            pane: 'routePane'
+        }).addTo(map);
+        activeRouteLine.bringToFront();
+        routeLayers.bringToFront();
+        searchLayers.bringToFront();
+        return activeRouteLine;
+    }
+
+    function fitMapToRoute(origin, facility, latLngs) {
+        const bounds = L.latLngBounds(latLngs);
+        bounds.extend([origin.lat, origin.lng]);
+        bounds.extend([facility.lat, facility.lon || facility.lng]);
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
+    }
+
+    async function fetchDrivingRoute(origin, facility) {
+        const o = normalizeCoords(origin);
+        const d = normalizeCoords({ lat: facility.lat, lng: facility.lon });
+        if (!o || !d) {
+            throw new Error('Invalid coordinates');
+        }
+
+        const path = `${o.lng},${o.lat};${d.lng},${d.lat}`;
+        const query = 'overview=full&geometries=geojson&steps=false';
+        const servers = [
+            `https://router.project-osrm.org/route/v1/driving/${path}?${query}`,
+            `https://routing.openstreetmap.de/routed-car/route/v1/driving/${path}?${query}`
+        ];
+
+        for (const url of servers) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) continue;
+                const data = await res.json();
+                if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                    return { route: data.routes[0], origin: o, dest: d };
+                }
+            } catch (err) {
+                console.warn('Routing server failed:', url, err);
+            }
+        }
+        return null;
+    }
+
+    function buildRoutePopupHtml(facility, origin, originLabel, routeDistKm, routeDurationText) {
+        const googleUrl = buildGoogleMapsDirectionsUrl(
+            origin.lat,
+            origin.lng,
+            facility.lat,
+            facility.lon
+        );
+        return `
+            <strong>${facility.name}</strong><br>
+            <span style="font-size:0.8rem;">${facility.type}</span><br>
+            <span style="font-size:0.78rem;color:#94a3b8;">From: ${originLabel}</span><br>
+            <span style="font-size:0.78rem;">Route: <strong>${routeDistKm} km</strong> · ${routeDurationText}</span><br>
+            <a href="${googleUrl}" target="_blank" rel="noopener noreferrer"
+               style="display:inline-block;margin-top:6px;font-size:0.78rem;color:#38bdf8;font-weight:600;">
+               Open directions in Google Maps
+            </a>
+        `;
+    }
+
+    function updateFacilityRouteStats(facility, distKm, durationText) {
+        if (facility._distanceCell) {
+            facility._distanceCell.textContent = `${distKm} km`;
+        }
+        if (facility._travelTimeCell) {
+            facility._travelTimeCell.textContent = durationText;
+        }
+    }
+
+    function addRouteOriginMarker(origin) {
+        if (origin.marker) {
+            origin.marker.openPopup();
+            return;
+        }
+        L.marker([origin.lat, origin.lng], { icon: getOriginIcon(origin.label || 'Village') })
+            .bindPopup(`<strong>${origin.label || 'Start'}</strong><br><span style="font-size:0.78rem;">Route start (village)</span>`)
+            .addTo(routeLayers);
+    }
+
+    function drawStraightLineRoute(origin, facility, originLabel) {
+        const o = normalizeCoords(origin);
+        const d = normalizeCoords({ lat: facility.lat, lng: facility.lon });
+        if (!o || !d) return;
+
+        const latLngs = [[o.lat, o.lng], [d.lat, d.lng]];
+        setRouteLine(latLngs, true);
+
+        const distKm = parseFloat((map.distance([o.lat, o.lng], [d.lat, d.lng]) / 1000).toFixed(2));
+        const durationText = estimateTravelTime(distKm) + ' (est.)';
+        facility.marker.setIcon(getHighlightedFacilityIcon(facility.type));
+        facility.marker.bindPopup(buildRoutePopupHtml(facility, o, originLabel, distKm, durationText));
+        facility.marker.openPopup();
+        updateFacilityRouteStats(facility, distKm, durationText);
+        fitMapToRoute(o, { lat: d.lat, lon: d.lng }, latLngs);
+    }
+
+    async function showFacilityWithRoute(facility, originOverride) {
+        const rawOrigin = originOverride || facility.routeOrigin || currentRouteOrigin;
+        const origin = normalizeCoords(rawOrigin);
+        const dest = normalizeCoords({ lat: facility.lat, lng: facility.lon });
+
+        if (!origin || !dest) {
+            map.setView([facility.lat, facility.lon || facility.lng], 16);
+            facility.marker.openPopup();
+            return;
+        }
+
+        const originForUi = { lat: origin.lat, lng: origin.lng, label: rawOrigin.label, marker: rawOrigin.marker };
+        currentRouteOrigin = originForUi;
+
+        clearActiveRoute();
+        currentRouteOrigin = originForUi;
+        enableGoogleMapForRoute();
+        highlightedFacility = facility;
+
+        const originLabel = rawOrigin.label || 'Village';
+        addRouteOriginMarker(originForUi);
+
+        facility.marker.setIcon(getHighlightedFacilityIcon(facility.type));
+        facility.marker.bindPopup(`<strong>${facility.name}</strong><br>Loading route from ${originLabel}…`);
+        facility.marker.openPopup();
+
+        // Show a provisional line immediately so the user always sees a route
+        const straightLatLngs = [[origin.lat, origin.lng], [dest.lat, dest.lng]];
+        setRouteLine(straightLatLngs, true);
+        fitMapToRoute(origin, { lat: dest.lat, lon: dest.lng }, straightLatLngs);
+
+        const result = await fetchDrivingRoute(originForUi, facility);
+        if (result) {
+            const latLngs = result.route.geometry.coordinates.map(c => [c[1], c[0]]);
+            setRouteLine(latLngs, false);
+
+            const distKm = (result.route.distance / 1000).toFixed(2);
+            const durationText = formatRouteDuration(result.route.duration);
+            facility.marker.bindPopup(buildRoutePopupHtml(facility, origin, originLabel, distKm, durationText));
+            facility.marker.openPopup();
+            updateFacilityRouteStats(facility, distKm, durationText);
+            fitMapToRoute(origin, { lat: dest.lat, lon: dest.lng }, latLngs);
+        } else {
+            drawStraightLineRoute(originForUi, facility, originLabel);
+        }
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function attachZoomMapButton(btnZoom, facility, mandalName) {
+        btnZoom.onclick = () => {
+            clearActiveRoute();
+            enableGoogleMapView();
+            highlightedFacility = facility;
+            facility.marker.setIcon(getHighlightedFacilityIcon(facility.type));
+
+            const googlePlaceUrl = `https://www.google.com/maps/search/?api=1&query=${facility.lat},${facility.lon}`;
+            facility.marker.bindPopup(
+                `<strong>${facility.name}</strong><br>` +
+                `<span style="font-size:0.8rem;">${facility.type}</span><br>` +
+                (mandalName ? `<span style="font-size:0.78rem;color:#94a3b8;">Mandal: ${mandalName}</span><br>` : '') +
+                `<a href="${googlePlaceUrl}" target="_blank" rel="noopener noreferrer" ` +
+                `style="display:inline-block;margin-top:6px;font-size:0.78rem;color:#38bdf8;font-weight:600;">` +
+                `Open in Google Maps</a>`
+            );
+
+            map.setView([facility.lat, facility.lon], 16);
+            facility.marker.openPopup();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+    }
+
+    function attachZoomRouteButton(btnZoom, facility) {
+        btnZoom.onclick = async () => {
+            const origin = facility.routeOrigin || currentRouteOrigin;
+            if (!origin) {
+                alert('No village or start location found. Run a Nearby Facilities search first.');
+                return;
+            }
+            const prevText = btnZoom.textContent;
+            btnZoom.disabled = true;
+            btnZoom.textContent = 'Loading…';
+            try {
+                await showFacilityWithRoute(facility, origin);
+            } catch (err) {
+                console.error('Route display failed:', err);
+                drawStraightLineRoute(origin, facility, origin.label || 'Village');
+            } finally {
+                btnZoom.disabled = false;
+                btnZoom.textContent = prevText;
+            }
+        };
+    }
 
     let rawGeojsonData = null;
     let allowedMandals = [];
@@ -167,12 +469,232 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${Math.round(minutes)} mins`;
     }
 
+    let tableExportContext = null;
+    const btnDownloadTable = document.getElementById('btn-download-table');
+
+    function slugForFilename(value) {
+        return String(value || 'data')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '') || 'data';
+    }
+
+    function setTableExportContext(facilities, context) {
+        if (!facilities || facilities.length === 0) {
+            tableExportContext = null;
+            if (btnDownloadTable) btnDownloadTable.disabled = true;
+            return;
+        }
+
+        tableExportContext = {
+            ...context,
+            facilitiesList: facilities
+        };
+        if (btnDownloadTable) btnDownloadTable.disabled = false;
+    }
+
+    function getExportRowsFromFacilities(facilities) {
+        return facilities.map((fac, idx) => ({
+            sno: idx + 1,
+            name: fac.name,
+            type: fac.type,
+            distanceKm: fac._distanceCell
+                ? fac._distanceCell.textContent.replace(/\s*km\s*$/i, '').trim()
+                : fac.distance,
+            travelTime: fac._travelTimeCell
+                ? fac._travelTimeCell.textContent
+                : estimateTravelTime(fac.distance),
+            latitude: fac.lat,
+            longitude: fac.lon
+        }));
+    }
+
+    function clearTableExportContext() {
+        tableExportContext = null;
+        if (btnDownloadTable) btnDownloadTable.disabled = true;
+    }
+
+    function escapeCsvValue(value) {
+        const text = String(value ?? '');
+        if (/[",\n\r]/.test(text)) {
+            return `"${text.replace(/"/g, '""')}"`;
+        }
+        return text;
+    }
+
+    function downloadFacilitiesTableCsv() {
+        if (!tableExportContext || !tableExportContext.facilitiesList.length) {
+            alert('No facility data to download.');
+            return;
+        }
+
+        const exportRows = getExportRowsFromFacilities(tableExportContext.facilitiesList);
+
+        const headers = [
+            'S.No',
+            'Hospital Name',
+            'Type',
+            'Distance (km)',
+            'Est. Travel Time',
+            'Latitude',
+            'Longitude'
+        ];
+
+        const metaRows = [];
+        if (tableExportContext.source === 'health-resources') {
+            metaRows.push(['Source', 'Health Resources']);
+            metaRows.push(['Mandal', tableExportContext.mandalName || '']);
+        } else {
+            metaRows.push(['Source', 'Nearby Facilities']);
+            metaRows.push(['Mandal', tableExportContext.mandalName || '']);
+            metaRows.push(['Village', tableExportContext.village || '']);
+            if (tableExportContext.radiusKm != null) {
+                metaRows.push(['Search Radius (km)', tableExportContext.radiusKm]);
+            }
+        }
+        metaRows.push(['Exported', new Date().toLocaleString()]);
+        metaRows.push([]);
+
+        const dataRows = exportRows.map(f => [
+            f.sno,
+            f.name,
+            f.type,
+            f.distanceKm,
+            f.travelTime,
+            f.latitude,
+            f.longitude
+        ]);
+
+        const csv = [...metaRows, headers, ...dataRows]
+            .map(row => row.map(escapeCsvValue).join(','))
+            .join('\r\n');
+
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const datePart = new Date().toISOString().slice(0, 10);
+        let filename;
+
+        if (tableExportContext.source === 'health-resources') {
+            filename = `health-resources-${slugForFilename(tableExportContext.mandalName)}-${datePart}.csv`;
+        } else {
+            filename = `nearby-facilities-${slugForFilename(tableExportContext.village)}-${slugForFilename(tableExportContext.mandalName)}-${datePart}.csv`;
+        }
+
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    if (btnDownloadTable) {
+        btnDownloadTable.addEventListener('click', downloadFacilitiesTableCsv);
+    }
+
+    // Point-in-polygon helpers (filter facilities to mandal boundary only)
+    function isPointInPolygon(point, ring) {
+        const x = point[0];
+        const y = point[1];
+        let inside = false;
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            const xi = ring[i][0];
+            const yi = ring[i][1];
+            const xj = ring[j][0];
+            const yj = ring[j][1];
+            const intersect = ((yi > y) !== (yj > y))
+                && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    }
+
+    function isPointInFeature(point, geometry) {
+        if (!geometry) return false;
+        if (geometry.type === 'Polygon') {
+            return isPointInPolygon(point, geometry.coordinates[0]);
+        }
+        if (geometry.type === 'MultiPolygon') {
+            return geometry.coordinates.some(poly => isPointInPolygon(point, poly[0]));
+        }
+        return false;
+    }
+
+    function generateRandomPointInPolygon(geometry) {
+        let minLat = Infinity;
+        let maxLat = -Infinity;
+        let minLng = Infinity;
+        let maxLng = -Infinity;
+
+        const processRing = (ring) => {
+            ring.forEach(pt => {
+                if (pt[1] < minLat) minLat = pt[1];
+                if (pt[1] > maxLat) maxLat = pt[1];
+                if (pt[0] < minLng) minLng = pt[0];
+                if (pt[0] > maxLng) maxLng = pt[0];
+            });
+        };
+
+        if (geometry.type === 'Polygon') {
+            processRing(geometry.coordinates[0]);
+        } else if (geometry.type === 'MultiPolygon') {
+            geometry.coordinates.forEach(poly => processRing(poly[0]));
+        }
+
+        for (let attempt = 0; attempt < 80; attempt++) {
+            const randLat = minLat + Math.random() * (maxLat - minLat);
+            const randLng = minLng + Math.random() * (maxLng - minLng);
+            if (isPointInFeature([randLng, randLat], geometry)) {
+                return { lat: randLat, lng: randLng };
+            }
+        }
+
+        return null;
+    }
+
+    function generateMandalFallbackFacilities(mandalFeature, center, resultsList, mandalName) {
+        const geometry = mandalFeature.geometry;
+        const seed = sanitize(mandalName || 'mandal').length;
+        const count = 2 + (seed % 3);
+        const facilityNames = [
+            'Mandal Primary Health Centre',
+            'Community Health Clinic',
+            'Village Health Sub-Centre',
+            'Urban Primary Health Center',
+            'Jan Aushadhi Medical Store'
+        ];
+        const facilityTypes = ['PHC', 'Clinic', 'VHC', 'UPHC', 'Pharmacy'];
+
+        for (let i = 0; i < count; i++) {
+            const pt = generateRandomPointInPolygon(geometry);
+            if (!pt) continue;
+
+            const name = `${mandalName} ${facilityNames[(seed + i) % facilityNames.length]} (Simulated)`;
+            const type = facilityTypes[(seed + i) % facilityTypes.length];
+            const dist = parseFloat((map.distance(center, [pt.lat, pt.lng]) / 1000).toFixed(2));
+
+            const marker = L.marker([pt.lat, pt.lng], { icon: getFacilityIcon(type) })
+                .bindPopup(`<strong>${name}</strong><br>Type: ${type}<br>Mandal: ${mandalName}`)
+                .addTo(searchLayers);
+
+            resultsList.push({
+                name,
+                type,
+                distance: dist,
+                lat: pt.lat,
+                lon: pt.lng,
+                marker
+            });
+        }
+    }
+
     // Load resources
     const timestamp = new Date().getTime();
     Promise.all([
-        fetch(`datasets/ap_mandals.geojson?v=${timestamp}`).then(r => r.json()),
-        fetch(`datasets/tirupati-district-mandals.txt?v=${timestamp}`).then(r => r.text()),
-        fetch(`datasets/mandal wise no of hospitals.json?v=${timestamp}`).then(r => r.json())
+        fetchDataset(`datasets/ap_mandals.geojson?v=${timestamp}`).then(g => assertGeoJson(g, 'ap_mandals.geojson')),
+        fetchDataset(`datasets/tirupati-district-mandals.txt?v=${timestamp}`, 'text'),
+        fetchDataset(`datasets/mandal wise no of hospitals.json?v=${timestamp}`)
     ])
     .then(([geojson, mandalsText, hospitalsList]) => {
         rawGeojsonData = geojson;
@@ -204,6 +726,9 @@ document.addEventListener('DOMContentLoaded', () => {
     })
     .catch(err => {
         console.error("Error loading resources for Nearby Facilities page: ", err);
+        showDataLoadError(
+            'Could not load map data. Run "python run.py" and open the URL shown in the terminal (port 8080).'
+        );
     });
 
 
@@ -265,13 +790,15 @@ document.addEventListener('DOMContentLoaded', () => {
             btnResources.disabled = true;
             btnResources.textContent = 'Loading...';
 
-            // Clear previous search layers
+            // Clear previous search layers and routes
             searchLayers.clearLayers();
+            clearActiveRoute();
 
             // Clear table
             const tableBody = document.getElementById('results-table-body');
             tableBody.innerHTML = '';
             document.getElementById('search-results-table-card').style.display = 'none';
+            clearTableExportContext();
 
             if (!selectedLayer) {
                 btnResources.disabled = false;
@@ -279,10 +806,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            const mandalFeature = selectedLayer.feature;
+            const mandalGeometry = mandalFeature.geometry;
             const center = selectedLayer.getBounds().getCenter();
-            const corner = selectedLayer.getBounds().getNorthEast();
-            const radiusMeters = map.distance(center, corner);
-            const radiusKm = radiusMeters / 1000;
+            const bounds = selectedLayer.getBounds();
+            const south = bounds.getSouthWest().lat;
+            const west = bounds.getSouthWest().lng;
+            const north = bounds.getNorthEast().lat;
+            const east = bounds.getNorthEast().lng;
 
             const searchResults = [];
 
@@ -296,27 +827,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         plat = element.center.lat;
                         plon = element.center.lon;
                     }
-                    
-                    if (plat && plon && element.tags) {
-                        const name = element.tags.name || 'Mandal Health Facility';
-                        const amenity = element.tags.amenity || 'Healthcare';
-                        const amenityFormatted = amenity.charAt(0).toUpperCase() + amenity.slice(1);
-                        const dist = parseFloat((map.distance(center, [plat, plon]) / 1000).toFixed(2));
 
-                        // Custom SVG markers for Health Resources
-                        const marker = L.marker([plat, plon], { icon: getFacilityIcon(amenityFormatted) })
-                            .bindPopup(`<strong>${name}</strong><br>Type: ${amenityFormatted}<br>Mandal: ${mandalName}`)
-                            .addTo(searchLayers);
+                    if (!plat || !plon || !element.tags) return;
+                    // Only include facilities strictly inside this mandal polygon
+                    if (!isPointInFeature([plon, plat], mandalGeometry)) return;
 
-                        searchResults.push({
-                            name: name,
-                            type: amenityFormatted,
-                            distance: dist,
-                            lat: plat,
-                            lon: plon,
-                            marker: marker
-                        });
-                    }
+                    const name = element.tags.name || 'Mandal Health Facility';
+                    const amenity = element.tags.amenity || 'Healthcare';
+                    const amenityFormatted = amenity.charAt(0).toUpperCase() + amenity.slice(1);
+                    const dist = parseFloat((map.distance(center, [plat, plon]) / 1000).toFixed(2));
+
+                    const marker = L.marker([plat, plon], { icon: getFacilityIcon(amenityFormatted) })
+                        .bindPopup(`<strong>${name}</strong><br>Type: ${amenityFormatted}<br>Mandal: ${mandalName}`)
+                        .addTo(searchLayers);
+
+                    searchResults.push({
+                        name: name,
+                        type: amenityFormatted,
+                        distance: dist,
+                        lat: plat,
+                        lon: plon,
+                        marker: marker
+                    });
                 });
             };
 
@@ -346,11 +878,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const btnZoom = document.createElement('button');
                     btnZoom.className = 'btn-table-action';
                     btnZoom.textContent = 'Zoom on Map';
-                    btnZoom.onclick = () => {
-                        map.setView([fac.lat, fac.lon], 16);
-                        fac.marker.openPopup();
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    };
+                    attachZoomMapButton(btnZoom, fac, mandalName);
                     tdAction.appendChild(btnZoom);
                     row.appendChild(tdAction);
 
@@ -358,11 +886,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (searchResults.length > 0) {
+                    const titleEl = document.querySelector('#search-results-table-card .table-title');
+                    if (titleEl) {
+                        titleEl.textContent = `Health facilities inside ${mandalName} mandal boundary`;
+                    }
+                    setTableExportContext(searchResults, {
+                        source: 'health-resources',
+                        mandalName
+                    });
                     document.getElementById('search-results-table-card').style.display = 'block';
+                } else {
+                    const titleEl = document.querySelector('#search-results-table-card .table-title');
+                    if (titleEl) {
+                        titleEl.textContent = `No health facilities found inside ${mandalName} boundary`;
+                    }
+                    clearTableExportContext();
                 }
             };
 
-            const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json][timeout:25];(node["amenity"~"hospital|clinic|doctors|dentist|pharmacy"](around:${radiusMeters},${center.lat},${center.lng});way["amenity"~"hospital|clinic|doctors|dentist|pharmacy"](around:${radiusMeters},${center.lat},${center.lng});relation["amenity"~"hospital|clinic|doctors|dentist|pharmacy"](around:${radiusMeters},${center.lat},${center.lng}););out body;>;out skel qt;`;
+            const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json][timeout:25];(node["amenity"~"hospital|clinic|doctors|dentist|pharmacy"](${south},${west},${north},${east});way["amenity"~"hospital|clinic|doctors|dentist|pharmacy"](${south},${west},${north},${east});relation["amenity"~"hospital|clinic|doctors|dentist|pharmacy"](${south},${west},${north},${east}););out center;`;
 
             fetch(overpassUrl)
                 .then(res => res.json())
@@ -372,15 +914,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     if (searchResults.length === 0) {
-                        generateFallbackFacilities(center.lat, center.lng, radiusKm, searchResults);
+                        generateMandalFallbackFacilities(mandalFeature, center, searchResults, mandalName);
                     }
 
                     displayTable();
                     map.fitBounds(selectedLayer.getBounds(), { padding: [30, 30] });
                 })
                 .catch(err => {
-                    console.warn("Overpass API failed. Generating fallback simulated facilities.");
-                    generateFallbackFacilities(center.lat, center.lng, radiusKm, searchResults);
+                    console.warn("Overpass API failed. Generating simulated facilities inside mandal boundary.", err);
+                    generateMandalFallbackFacilities(mandalFeature, center, searchResults, mandalName);
                     displayTable();
                     map.fitBounds(selectedLayer.getBounds(), { padding: [30, 30] });
                 })
@@ -495,6 +1037,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Clear previous layers
         searchLayers.clearLayers();
+        clearActiveRoute();
 
         // Travel time estimation helper
         const estimateTravelTime = (distanceKm) => {
@@ -508,6 +1051,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tableBody = document.getElementById('results-table-body');
             tableBody.innerHTML = '';
             document.getElementById('search-results-table-card').style.display = 'none';
+            clearTableExportContext();
 
             // Add Village Marker
             const markerColor = isFallback ? '#f59e0b' : '#10b981';
@@ -525,6 +1069,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const villageMarker = L.marker([lat, lon], { icon: villageIcon })
                 .bindPopup(labelText)
                 .addTo(searchLayers);
+
+            const villageRouteOrigin = {
+                lat: lat,
+                lng: lon,
+                label: isFallback ? `${mandalName} (Mandal center)` : `Village: ${village}`,
+                marker: villageMarker
+            };
+            currentRouteOrigin = villageRouteOrigin;
 
             // Add Radius Circle
             const circle = L.circle([lat, lon], {
@@ -564,7 +1116,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             distance: dist,
                             lat: plat,
                             lon: plon,
-                            marker: marker
+                            marker: marker,
+                            routeOrigin: villageRouteOrigin
                         });
                     }
                 });
@@ -590,24 +1143,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Distance
                     const tdDist = document.createElement('td');
                     tdDist.textContent = `${fac.distance} km`;
+                    fac._distanceCell = tdDist;
                     row.appendChild(tdDist);
 
                     // Travel Time
                     const tdTime = document.createElement('td');
                     tdTime.textContent = estimateTravelTime(fac.distance);
+                    fac._travelTimeCell = tdTime;
                     row.appendChild(tdTime);
 
-                    // Action Zoom button
+                    // Action — route from village to hospital on Google map
                     const tdAction = document.createElement('td');
                     const btnZoom = document.createElement('button');
                     btnZoom.className = 'btn-table-action';
                     btnZoom.textContent = 'Zoom on Map';
-                    btnZoom.onclick = () => {
-                        map.setView([fac.lat, fac.lon], 16);
-                        fac.marker.openPopup();
-                        // Scroll the page back to top smoothly to focus on the map
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    };
+                    btnZoom.title = `Show driving route from ${village} to this hospital`;
+                    attachZoomRouteButton(btnZoom, fac);
                     tdAction.appendChild(btnZoom);
                     row.appendChild(tdAction);
 
@@ -615,7 +1166,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (searchResults.length > 0) {
+                    const titleEl = document.querySelector('#search-results-table-card .table-title');
+                    if (titleEl) {
+                        titleEl.textContent = `Hospitals near ${village} — Zoom on Map shows driving route from your village`;
+                    }
+                    setTableExportContext(searchResults, {
+                        source: 'nearby-facilities',
+                        mandalName,
+                        village,
+                        radiusKm: radius
+                    });
                     document.getElementById('search-results-table-card').style.display = 'block';
+                } else {
+                    clearTableExportContext();
                 }
             };
 
@@ -630,7 +1193,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     if (searchResults.length === 0) {
-                        generateFallbackFacilities(lat, lon, radius, searchResults);
+                        generateFallbackFacilities(lat, lon, radius, searchResults, villageRouteOrigin);
                     }
 
                     displayResultsTable();
@@ -642,7 +1205,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
                 .catch(err => {
                     console.warn("Overpass API failed or offline. Generating simulated facilities.");
-                    generateFallbackFacilities(lat, lon, radius, searchResults);
+                    generateFallbackFacilities(lat, lon, radius, searchResults, villageRouteOrigin);
                     displayResultsTable();
                     map.fitBounds(circle.getBounds(), { padding: [30, 30] });
                     villageMarker.openPopup();
@@ -704,7 +1267,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tryNextQuery();
     };
 
-    function generateFallbackFacilities(centerLat, centerLon, radiusKm, resultsList) {
+    function generateFallbackFacilities(centerLat, centerLon, radiusKm, resultsList, routeOrigin) {
         const count = 3 + Math.floor(Math.random() * 4);
         const facilityNames = [
             "Mandal Primary Health Centre", 
@@ -741,7 +1304,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 distance: dist,
                 lat: plat,
                 lon: plon,
-                marker: marker
+                marker: marker,
+                routeOrigin: routeOrigin || currentRouteOrigin
             });
         }
     }

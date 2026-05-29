@@ -53,7 +53,9 @@ body {
     font-weight: 700;
     margin: 0;
     letter-spacing: 0.5px;
-    background: linear-gradient(135deg, #38bdf8, #818cf8);
+    background: linear-gradient(90deg, #38bdf8, #818cf8, #ffffff, #818cf8, #38bdf8);
+    background-size: 200% auto;
+    animation: shine 3s linear infinite alternate;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -64,47 +66,73 @@ body {
     align-items: center;
 }
 
+@keyframes rotate-border {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 .nav-link {
     color: #ffffff;
     text-decoration: none;
-    font-size: 0.65rem;
+    font-size: 0.55rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
     transition: all 0.25s ease;
     position: relative;
-    padding: 2px 0;
+    padding: 4px 6px;
+    border-radius: 8px;
+    overflow: hidden;
     gap: 4px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 115px;
+    height: 30px;
+    white-space: nowrap;
+    background: transparent;
+    z-index: 1;
 }
 
 .nav-link svg {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
 }
 
 .nav-links-wrapper {
-    gap: 12px !important;
+    gap: 8px !important;
 }
 
-.nav-link:hover,
-.nav-link.active {
-    color: #38bdf8;
+.nav-link::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%; width: 200%; height: 200%;
+    background: conic-gradient(from 0deg, transparent 0%, transparent 40%, #38bdf8 50%, #818cf8 60%, transparent 60%);
+    animation: rotate-border 4s linear infinite;
+    z-index: -2;
+    opacity: 0.4;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.nav-link.active::before,
+.nav-link:hover::before {
+    opacity: 1;
 }
 
 .nav-link::after {
     content: '';
     position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 0;
-    height: 2px;
-    background: linear-gradient(90deg, #38bdf8, #818cf8);
-    transition: width 0.25s ease;
+    inset: 1.5px;
+    background: #0f172a;
+    border-radius: 7px;
+    z-index: -1;
+    pointer-events: none;
 }
 
-.nav-link:hover::after,
-.nav-link.active::after {
-    width: 100%;
+.nav-link:hover,
+.nav-link.active {
+    color: #38bdf8;
 }
 
 /* Dashboard Layout */
@@ -814,15 +842,61 @@ path.leaflet-interactive:focus,
     padding: 20px;
     margin-top: 20px;
     color: #f8fafc;
+    position: relative;
+}
+
+.table-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: 12px;
+    margin-bottom: 15px;
 }
 
 .table-title {
     font-size: 1.1rem;
     font-weight: 700;
     color: #38bdf8;
-    margin-top: 0;
-    margin-bottom: 15px;
+    margin: 0;
     text-align: left;
+    max-width: 65%;
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+.btn-download-table {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 135px;
+    height: 36px;
+    gap: 6px;
+    flex-shrink: 0;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.45);
+    color: #34d399;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+    outline: none;
+    margin-left: auto;
+    margin-top: 2px;
+}
+
+.btn-download-table:hover:not(:disabled) {
+    background: #10b981;
+    color: #0f172a;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+}
+
+.btn-download-table:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .table-responsive {
@@ -901,9 +975,26 @@ path.leaflet-interactive:focus,
     transition: transform 0.15s ease-in-out;
 }
 
+.facility-map-marker-active {
+    animation: facility-pulse 1.2s ease-in-out infinite;
+}
+
+/* Driving route line (rendered in routePane above mandal polygons) */
+.leaflet-routePane-pane path,
+.leaflet-pane[name="routePane"] path {
+    pointer-events: none;
+}
+
+@keyframes facility-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+}
+
 .facility-map-marker:hover {
     transform: scale(1.25);
 }
 
 
 
+
+@keyframes shine { 0% { background-position: 0 0; } 100% { background-position: 100% 0; } }
