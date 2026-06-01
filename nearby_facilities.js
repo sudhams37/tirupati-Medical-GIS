@@ -407,24 +407,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function attachZoomMapButton(btnZoom, facility, mandalName) {
         btnZoom.onclick = () => {
-            clearActiveRoute();
-            enableGoogleMapView();
-            highlightedFacility = facility;
-            facility.marker.setIcon(getHighlightedFacilityIcon(facility.type));
-
-            const googlePlaceUrl = `https://www.google.com/maps/search/?api=1&query=${facility.lat},${facility.lon}`;
-            facility.marker.bindPopup(
-                `<strong>${facility.name}</strong><br>` +
-                `<span style="font-size:0.8rem;">${facility.type}</span><br>` +
-                (mandalName ? `<span style="font-size:0.78rem;color:#94a3b8;">Mandal: ${mandalName}</span><br>` : '') +
-                `<a href="${googlePlaceUrl}" target="_blank" rel="noopener noreferrer" ` +
-                `style="display:inline-block;margin-top:6px;font-size:0.78rem;color:#38bdf8;font-weight:600;">` +
-                `Open in Google Maps</a>`
-            );
-
-            map.setView([facility.lat, facility.lon], 16);
-            facility.marker.openPopup();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            // For Nearby Facilities: open Google Maps with route if origin is available
+            let origin = facility.routeOrigin || (typeof currentRouteOrigin !== 'undefined' ? currentRouteOrigin : null);
+            if (facility.lat && facility.lon) {
+                if (origin && origin.lat && origin.lng) {
+                    // Open Google Maps Directions from origin to hospital
+                    const directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${facility.lat},${facility.lon}&travelmode=driving`;
+                    window.open(directionsUrl, '_blank', 'noopener');
+                } else {
+                    // Fallback: just show hospital location
+                    const googlePlaceUrl = `https://www.google.com/maps/search/?api=1&query=${facility.lat},${facility.lon}`;
+                    window.open(googlePlaceUrl, '_blank', 'noopener');
+                }
+            } else {
+                alert('Location not available for this hospital.');
+            }
         };
     }
 
